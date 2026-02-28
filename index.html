@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v3.1</title>
+    <title>Stok Strip Pro v3.2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -14,7 +14,7 @@
         .menu-dropdown.show { display: block; }
         .menu-item { padding: 15px; display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; border-bottom: 1px solid #eee; color: #333; }
         .tabs { display: flex; background: white; border-bottom: 2px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; }
-        .tab { flex: 1; text-align: center; padding: 15px 5px; font-weight: 800; color: #64748b; cursor: pointer; font-size: 0.8rem; }
+        .tab { flex: 1; text-align: center; padding: 12px 5px; font-weight: 800; color: #64748b; cursor: pointer; font-size: 0.75rem; }
         .tab.active { border-bottom: 4px solid #2563eb; color: #2563eb; background: #f8fafc; }
         .main-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -33,8 +33,7 @@
         .preview-box { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center; }
         .preview-box img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; display: none; border: 2px solid #2563eb; }
         .action-btns { display: flex; flex-direction: column; gap: 5px; }
-        .btn-edit { background: #f59e0b; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
-        .btn-del { background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .btn-edit { background: #f59e0b; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -49,7 +48,7 @@
 <div id="menuDropdown" class="menu-dropdown">
     <div class="menu-item" onclick="exportDB()">📤 Export/Share (.sqlite)</div>
     <div class="menu-item" onclick="document.getElementById('importFile').click(); toggleMenu()">📥 Restore Data</div>
-    <div class="menu-item" onclick="clearData()" style="color:red">⚠️ Reset Database</div>
+    <div class="menu-item" onclick="clearData()" style="color:red">⚠️ Reset & Hapus Semua</div>
     <input type="file" id="importFile" class="hidden" onchange="importDB(event)">
 </div>
 
@@ -85,7 +84,7 @@
     </div>
 
     <div id="screen-list" class="hidden">
-        <input type="text" id="q-search" class="form-input" placeholder="🔍 Cari..." oninput="render()">
+        <input type="text" id="q-search" class="form-input" placeholder="🔍 Cari nama striping..." oninput="render()">
         <div id="list-render"></div>
     </div>
 </div>
@@ -106,15 +105,17 @@
             SQL = await initSqlJs(config);
             const saved = localStorage.getItem('stok_db');
             db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
+            
+            // AUTO-REPAIR: Pastikan kolom lengkap
             db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
+            try { db.run("SELECT img2 FROM produk LIMIT 1"); } 
+            catch(e) { db.run("ALTER TABLE produk ADD COLUMN img2 TEXT;"); }
+
             document.getElementById('loading').style.display = 'none';
-        } catch (e) { alert("Gagal memuat sistem."); }
+        } catch (e) { alert("Sistem Error. Silakan Reset Database."); }
     }
 
-    function pilihFoto(slot) {
-        targetSlot = slot;
-        document.getElementById('file-input').click();
-    }
+    function pilihFoto(slot) { targetSlot = slot; document.getElementById('file-input').click(); }
 
     function prosesFoto(input) {
         if (input.files[0]) {
@@ -126,9 +127,9 @@
                     const scale = 500 / img.width;
                     canvas.width = 500; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, 500, canvas.height);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.6);
-                    imgs['p'+targetSlot] = base64;
-                    document.getElementById('p'+targetSlot).src = base64;
+                    const b64 = canvas.toDataURL('image/jpeg', 0.6);
+                    imgs['p'+targetSlot] = b64;
+                    document.getElementById('p'+targetSlot).src = b64;
                     document.getElementById('p'+targetSlot).style.display = 'block';
                 };
                 img.src = e.target.result;
@@ -142,7 +143,7 @@
         const nama = document.getElementById('f-nama').value;
         const kat = document.getElementById('f-kategori').value;
         const id = document.getElementById('f-id').value;
-        if(!nama) return alert("Nama kosong!");
+        if(!nama) return alert("Nama tidak boleh kosong!");
 
         try {
             if(id) {
@@ -151,30 +152,27 @@
                 db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [nama, kat, imgs.p1, imgs.p2]);
             }
             persist(); reset(); navKe('list');
-        } catch (e) { alert("Gagal Simpan."); }
+        } catch (e) { alert("Gagal Simpan. Silakan klik 'Reset Database' di menu."); }
     }
 
     function edit(id) {
-        const data = db.exec("SELECT * FROM produk WHERE id=?", [id])[0].values[0];
-        document.getElementById('f-id').value = data[0];
-        document.getElementById('f-nama').value = data[1];
-        document.getElementById('f-kategori').value = data[2];
-        imgs.p1 = data[3] || '';
-        imgs.p2 = data[4] || '';
-        
+        const res = db.exec("SELECT * FROM produk WHERE id=?", [id])[0].values[0];
+        document.getElementById('f-id').value = res[0];
+        document.getElementById('f-nama').value = res[1];
+        document.getElementById('f-kategori').value = res[2];
+        imgs.p1 = res[3] || ''; imgs.p2 = res[4] || '';
         if(imgs.p1) { document.getElementById('p1').src = imgs.p1; document.getElementById('p1').style.display = 'block'; }
         if(imgs.p2) { document.getElementById('p2').src = imgs.p2; document.getElementById('p2').style.display = 'block'; }
-        
         document.getElementById('form-title').innerText = "Edit Barang";
         navKe('add');
     }
 
     function render() {
         const q = document.getElementById('q-search').value;
-        const data = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`);
+        const data = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`)[0];
         let html = '';
-        if(data[0]) {
-            data[0].values.forEach(r => {
+        if(data) {
+            data.values.forEach(r => {
                 html += `<div class="product-item">
                     <div class="img-stack">
                         <img src="${r[3] || ''}" class="prod-img">
@@ -183,32 +181,26 @@
                     <div style="flex:1">
                         <div style="font-weight:700">${r[1]}</div>
                         <div style="color:#2563eb; font-weight:800">Stok: ${r[5]}</div>
-                        <div style="display:flex; gap:10px; margin-top:5px">
-                            <button style="width:30px" onclick="adj(${r[0]},1)">+</button>
-                            <button style="width:30px" onclick="adj(${r[0]},-1)">-</button>
+                        <div style="margin-top:5px">
+                            <button style="padding:5px 12px" onclick="adj(${r[0]},1)">+</button>
+                            <button style="padding:5px 12px" onclick="adj(${r[0]},-1)">-</button>
                         </div>
                     </div>
                     <div class="action-btns">
                         <button class="btn-edit" onclick="edit(${r[0]})">EDIT</button>
-                        <button class="btn-del" onclick="hapus(${r[0]})">HAPUS</button>
+                        <button style="color:red;border:none;background:none;font-size:0.7rem" onclick="hapus(${r[0]})">Hapus</button>
                     </div>
                 </div>`;
             });
         }
-        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Kosong</p>';
+        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Tidak ada data</p>';
     }
 
     async function exportDB() {
-        try {
-            const data = db.export();
-            const fileName = `stok_backup.sqlite`;
-            const file = new File([data], fileName, { type: "application/octet-stream" });
-            if (navigator.share) await navigator.share({ files: [file], title: 'Backup Stok' });
-            else {
-                const url = URL.createObjectURL(new Blob([data]));
-                const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
-            }
-        } catch (e) { alert("Gunakan fitur Share"); }
+        const data = db.export();
+        const file = new File([data], `stok_backup.sqlite`, { type: "application/octet-stream" });
+        if (navigator.share) await navigator.share({ files: [file], title: 'Backup Stok' });
+        else alert("Gunakan Chrome Android terbaru.");
     }
 
     function importDB(e) {
@@ -241,10 +233,10 @@
         imgs = { p1: '', p2: '' };
     }
     function toggleMenu() { document.getElementById('menuDropdown').classList.toggle('show'); }
-    function hapus(id) { if(confirm("Hapus?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
-    function clearData() { if(confirm("Reset database?")) { localStorage.clear(); location.reload(); } }
+    function hapus(id) { if(confirm("Hapus barang?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
+    function clearData() { if(confirm("Reset total? Semua data akan hilang.")) { localStorage.clear(); location.reload(); } }
     
     window.onload = initSQL;
 </script>
 </body>
-</html>
+    </html>
