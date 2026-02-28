@@ -3,195 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro SQL v3 - Foto & Ekspor Fix</title>
-    <link rel="manifest" href="manifest.json">
+    <title>Stok Strip Pro SQL v3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #f4f7f6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* Header */
         .header-main { background: #1e293b; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .status-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 8px; }
         .menu-btn { background: rgba(255,255,255,0.1); border: none; color: white; font-size: 1.4rem; width: 40px; height: 40px; border-radius: 12px; cursor: pointer; }
-        
-        /* Dropdown */
         .menu-dropdown { position: absolute; top: 60px; right: 10px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 240px; z-index: 1000; display: none; border: 1px solid #ddd; overflow: hidden; }
         .menu-dropdown.show { display: block; }
         .menu-item { padding: 15px; display: flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; border-bottom: 1px solid #eee; color: #333; }
-        .menu-item:active { background: #f8fafc; }
-
-        /* Tabs & Content */
         .tabs { display: flex; background: white; border-bottom: 2px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
         .tab { flex: 1; text-align: center; padding: 15px 5px; font-weight: 800; color: #64748b; cursor: pointer; white-space: nowrap; font-size: 0.85rem; }
         .tab.active { border-bottom: 4px solid #2563eb; color: #2563eb; background: #f8fafc; }
         .main-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; }
-        
-        /* Cards & Forms */
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .form-label { font-weight: 700; font-size: 0.75rem; color: #475569; margin-bottom: 5px; display: block; margin-top: 10px; }
         .form-input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 10px; font-size: 1rem; outline: none; }
-        .media-group { display: flex; gap: 10px; margin: 15px 0; }
-        .btn-media { flex: 1; padding: 15px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; cursor: pointer; text-align: center; font-weight: 700; color: #475569; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.8rem; }
-        .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; }
-
-        /* List Produk & Galeri */
-        .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #f1f5f9; position: relative; }
-        .product-gallery { width: 75px; height: 75px; position: relative; overflow: hidden; border-radius: 12px; border: 1px solid #eee; background: #f8fafc; }
-        .prod-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; transition: opacity 0.3s ease; }
-        .hidden { opacity: 0; pointer-events: none; }
-        .gallery-nav { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; background: rgba(255,255,255,0.7); border-radius: 8px; padding: 2px; }
-        .gallery-nav button { border: none; background: none; font-size: 0.8rem; cursor: pointer; padding: 0 4px; }
-
-        .prod-info { flex: 1; overflow: hidden; }
-        .prod-name { font-weight: 700; color: #0f172a; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .badge-stock { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.85rem; }
-        
-        .stock-ctrl { display: flex; align-items: center; gap: 6px; }
-        .btn-s { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #e2e8f0; background: white; font-weight: bold; font-size: 1.2rem; }
-        .btn-del { width: 36px; height: 36px; border-radius: 10px; border: none; background: #fff1f2; color: #e11d48; display: flex; align-items: center; justify-content: center; }
-
-        /* UI Helpers */
-        .modal-full { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5000; align-items: center; justify-content: center; padding: 20px; touch-action: none; }
-        .modal-full img { max-width: 100%; max-height: 80%; border-radius: 8px; transition: transform 0.1s ease; }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid #f1f5f9; height: 75px; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: 700; font-size: 0.7rem; }
-        .nav-item.active { color: #2563eb; }
-        .hidden-element { display: none !important; }
+        .media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-media { padding: 10px; border: 2px dashed #cbd5e1; border-radius: 10px; text-align: center; font-size: 0.75rem; font-weight: bold; cursor: pointer; background: #f8fafc; }
+        .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; }
+        .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #f1f5f9; }
+        .gallery-box { width: 75px; height: 75px; position: relative; border-radius: 12px; overflow: hidden; background: #eee; }
+        .prod-img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        .hidden { display: none !important; }
         #loading { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .img-preview-box { display: flex; gap: 10px; margin-bottom: 15px; }
-        .img-preview-box img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; display: none; border: 1px solid #eee; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid #f1f5f9; height: 70px; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: bold; font-size: 0.7rem; }
+        .nav-item.active { color: #2563eb; }
+        .preview-container { display: flex; gap: 10px; margin-bottom: 10px; }
+        .preview-container img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; display: none; }
     </style>
 </head>
 <body>
 
-<div id="loading">
-    <div style="font-size: 2.5rem; margin-bottom: 15px;">💾</div>
-    <p style="font-weight: bold; color: #1e293b;">Inisialisasi Database...</p>
-</div>
+<div id="loading"><b>💾 Memuat Database...</b></div>
 
 <div class="header-main">
-    <div><span class="status-dot"></span>STOK STRIP PRO</div>
+    <div>STOK STRIP PRO</div>
     <button class="menu-btn" onclick="toggleMenu()">⋮</button>
 </div>
 
 <div id="menuDropdown" class="menu-dropdown">
-    <div class="menu-item" onclick="exportData()">📤 Export & Share (.sqlite)</div>
-    <div class="menu-item" onclick="triggerImport()">📥 Import Database</div>
-    <div class="menu-item" onclick="clearData()" style="color: #ef4444;">⚠️ Hapus Semua Data</div>
-    <input type="file" id="importFile" class="hidden-element" onchange="importDB(event)">
+    <div class="menu-item" onclick="exportDB()">📤 Export & Simpan (.sqlite)</div>
+    <div class="menu-item" onclick="document.getElementById('importFile').click(); toggleMenu()">📥 Restore Data</div>
+    <div class="menu-item" onclick="clearData()" style="color: #ef4444;">⚠️ Hapus Semua</div>
+    <input type="file" id="importFile" class="hidden" onchange="importDB(event)">
 </div>
 
-<div id="tabs-container" class="tabs hidden-element"></div>
+<div id="tabs-container" class="tabs hidden"></div>
 
 <div class="main-content">
     <div id="screen-add">
         <div class="card">
-            <h3 id="form-title" style="margin-bottom:15px; color:#1e293b;">Input Barang</h3>
+            <h3 id="form-title">Input Barang</h3>
             <input type="hidden" id="f-id">
-            
-            <label class="form-label">KATEGORI MOTOR</label>
-            <select id="f-kategori" class="form-input">
+            <select id="f-kategori" class="form-input" style="margin-top:10px">
                 <option value="HONDA">HONDA</option>
                 <option value="YAMAHA">YAMAHA</option>
                 <option value="SUZUKI">SUZUKI</option>
                 <option value="KAWASAKI">KAWASAKI</option>
             </select>
+            <input type="text" id="f-nama" class="form-input" placeholder="Nama produk...">
             
-            <label class="form-label">NAMA PRODUK / STRIPING</label>
-            <input type="text" id="f-nama" class="form-input" placeholder="Contoh: CBR 150R Merah">
-            
-            <div class="img-preview-box">
-                <img id="img-preview-main">
-                <img id="img-preview-secondary">
+            <div class="preview-container">
+                <img id="p-main"> <img id="p-sec">
             </div>
 
-            <div class="media-group">
-                <label class="btn-media">
-                    <span>📷 Main</span>
-                    <input type="file" accept="image/*" capture="environment" class="hidden-element" onchange="handleImage(this, 0)">
-                </label>
-                <label class="btn-media">
-                    <span>📷 Sec.</span>
-                    <input type="file" accept="image/*" capture="environment" class="hidden-element" onchange="handleImage(this, 1)">
-                </label>
+            <div class="media-row">
+                <div class="btn-media" onclick="document.getElementById('in-main').click()">📸 Foto Utama (Galeri/Cam)</div>
+                <div class="btn-media" onclick="document.getElementById('in-sec').click()">📸 Foto Kedua (Galeri/Cam)</div>
             </div>
-            <button class="btn-primary" id="btn-save" onclick="simpanProduk()">SIMPAN PRODUK</button>
-            <button class="btn-primary hidden-element" id="btn-cancel" onclick="resetForm()" style="background:#94a3b8; margin-top:10px;">BATAL</button>
+            <input type="file" id="in-main" class="hidden" accept="image/*" onchange="handleImg(this, 'p-main')">
+            <input type="file" id="in-sec" class="hidden" accept="image/*" onchange="handleImg(this, 'p-sec')">
+
+            <button class="btn-primary" onclick="simpan()">SIMPAN PRODUK</button>
         </div>
     </div>
 
-    <div id="screen-list" class="hidden-element">
-        <div style="margin-bottom: 15px;">
-            <input type="text" id="q-search" style="width:100%; padding:14px 20px; border-radius:15px; border:1.5px solid #e2e8f0;" placeholder="🔍 Cari nama barang..." oninput="renderProduk()">
-        </div>
+    <div id="screen-list" class="hidden">
+        <input type="text" id="q-search" class="form-input" placeholder="🔍 Cari..." oninput="render()">
         <div id="list-render"></div>
     </div>
 </div>
 
-<div id="fullModal" class="modal-full" onclick="closeZoom()">
-    <img id="img-full">
-</div>
-
 <div class="bottom-nav">
-    <div class="nav-item active" onclick="navKe('add')" id="nav-add"><span>➕</span>INPUT</div>
-    <div class="nav-item" onclick="navKe('list')" id="nav-list"><span>📦</span>STOK</div>
+    <div class="nav-item active" onclick="navKe('add')" id="nav-add">➕ INPUT</div>
+    <div class="nav-item" onclick="navKe('list')" id="nav-list">📦 STOK</div>
 </div>
 
 <script>
     let SQL, db;
     let curCat = "HONDA";
-    let tempImages = ["", ""];
-    const cats = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"];
+    let imgs = { 'p-main': '', 'p-sec': '' };
 
     async function initSQL() {
-        try {
-            if (typeof initSqlJs === 'undefined') throw new Error("Library SQL.js tidak ditemukan.");
-            const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}` };
-            SQL = await initSqlJs(config);
-            
-            const savedDb = localStorage.getItem('stok_db');
-            if (savedDb) {
-                try {
-                    db = new SQL.Database(new Uint8Array(JSON.parse(savedDb)));
-                } catch (e) {
-                    console.warn("Gagal memuat database lama, buat baru.", e);
-                    db = new SQL.Database();
-                    db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, imgs TEXT, stok INTEGER DEFAULT 0);");
-                }
-            } else {
-                db = new SQL.Database();
-                db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, imgs TEXT, stok INTEGER DEFAULT 0);");
-            }
-            // Periksa apakah kolom 'imgs' ada, jika tidak, tambahkan.
-            const tableInfo = db.exec("PRAGMA table_info(produk)");
-            let hasImgs = false;
-            for(const col of tableInfo[0].values) { if(col[1] === 'imgs') hasImgs = true; }
-            if(!hasImgs) {
-                 // Kolom 'img' lama mungkin ada, kita tidak menghapusnya untuk keamanan data, tapi akan menggunakan 'imgs' baru.
-                 db.run("ALTER TABLE produk ADD COLUMN imgs TEXT;");
-            }
-            document.getElementById('loading').style.display = 'none';
-            navKe('add');
-        } catch (err) { alert("Database Error: " + err.message); console.error(err); }
+        const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}` };
+        SQL = await initSqlJs(config);
+        const saved = localStorage.getItem('stok_db');
+        db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
+        db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
+        document.getElementById('loading').style.display = 'none';
     }
 
-    function persist() { try { localStorage.setItem('stok_db', JSON.stringify(Array.from(db.export()))); } catch (e) { console.error("Gagal persist:", e); } }
-
-    function handleImage(input, index) {
-        if (input.files && input.files[0]) {
+    function handleImg(input, targetId) {
+        if (input.files[0]) {
             const reader = new FileReader();
             reader.onload = e => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const maxW = 500; const scale = maxW / img.width;
-                    canvas.width = maxW; canvas.height = img.height * scale;
+                    const max = 500; const scale = max / img.width;
+                    canvas.width = max; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    tempImages[index] = canvas.toDataURL('image/jpeg', 0.6);
-                    const previewId = index === 0 ? 'img-preview-main' : 'img-preview-secondary';
-                    document.getElementById(previewId).src = tempImages[index];
-                    document.getElementById(previewId).style.display = "block";
+                    imgs[targetId] = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById(targetId).src = imgs[targetId];
+                    document.getElementById(targetId).style.display = 'block';
                 };
                 img.src = e.target.result;
             };
@@ -199,161 +125,102 @@
         }
     }
 
-    async function exportData() {
-        try {
-            // FIX: Ekspor biner SQLite, bukan JSON.
-            const binaryData = db.export(); 
-            const fileName = `backup_stok_${new Date().getTime()}.sqlite`;
-            const blob = new Blob([binaryData], {type: "application/octet-stream"});
-            const file = new File([blob], fileName, { type: "application/octet-stream" });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'Backup Stok', text: 'Data stok barang.' });
-            } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = fileName; a.click(); URL.revokeObjectURL(url);
-                alert("Metode Share tidak didukung, mendownload file.");
-            }
-            toggleMenu();
-        } catch (e) { alert("Ekspor gagal: " + e.message); }
-    }
-
-    function simpanProduk() {
-        const nama = document.getElementById('f-nama').value.trim();
+    function simpan() {
+        const nama = document.getElementById('f-nama').value;
         const kat = document.getElementById('f-kategori').value;
         const id = document.getElementById('f-id').value;
-        if(!nama) return alert("Nama wajib diisi!");
-        try {
-            const imgsJson = JSON.stringify(tempImages);
-            id ? db.run("UPDATE produk SET nama=?, kategori=?, imgs=? WHERE id=?", [nama, kat, imgsJson, id]) :
-                 db.run("INSERT INTO produk (nama, kategori, imgs, stok) VALUES (?, ?, ?, 0)", [nama, kat, imgsJson]);
-            persist(); resetForm(); navKe('list');
-        } catch (e) { alert("Gagal menyimpan: " + e.message); }
+        if(!nama) return alert("Nama kosong!");
+        
+        if(id) {
+            db.run("UPDATE produk SET nama=?, kategori=?, img1=?, img2=? WHERE id=?", [nama, kat, imgs['p-main'], imgs['p-sec'], id]);
+        } else {
+            db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [nama, kat, imgs['p-main'], imgs['p-sec']]);
+        }
+        persist(); reset(); navKe('list');
     }
 
-    function renderProduk() {
+    function render() {
         const q = document.getElementById('q-search').value;
-        const stmt = db.prepare("SELECT * FROM produk WHERE kategori = ? AND nama LIKE ? ORDER BY id DESC");
-        stmt.bind([curCat, `%${q}%`]);
+        const res = db.exec("SELECT * FROM produk WHERE kategori='"+curCat+"' AND nama LIKE '%"+q+"%' ORDER BY id DESC")[0];
         let html = '';
-        while(stmt.step()) {
-            const item = stmt.getAsObject();
-            let productImgs = ["", ""];
-            if (item.imgs) { try { productImgs = JSON.parse(item.imgs); } catch (e) { console.error("Parse imgs gagal"); } }
-            else if (item.img) { productImgs = [item.img, ""]; } // Migrasi data lama
-
-            html += `<div class="product-item">
-                <div class="product-gallery">
-                    <img src="${productImgs[0]}" class="prod-img current-photo" id="photo-${item.id}-0" onclick="showZoom('${productImgs[0]}')">
-                    <img src="${productImgs[1]}" class="prod-img hidden photo-secondary" id="photo-${item.id}-1" onclick="showZoom('${productImgs[1]}')">
-                    ${productImgs[1] ? `<div class="gallery-nav"><button onclick="prevPhoto(${item.id})">&lt;</button><button onclick="nextPhoto(${item.id})">&gt;</button></div>` : ''}
-                </div>
-                <div class="prod-info">
-                    <div class="prod-name">${item.nama}</div>
-                    <div style="margin-top:5px;"><span class="badge-stock">Stok: ${item.stok}</span></div>
-                    <div onclick="editProduk(${item.id})" style="color:#2563eb; font-size:0.75rem; font-weight:700; margin-top:5px;">✎ EDIT</div>
-                </div>
-                <div class="stock-ctrl">
-                    <button class="btn-s" onclick="adjustStok(${item.id}, -1)">−</button>
-                    <button class="btn-s" onclick="adjustStok(${item.id}, 1)">+</button>
-                    <button class="btn-del" onclick="hapusProduk(${item.id})">🗑️</button>
-                </div>
-            </div>`;
+        if(res) {
+            res.values.forEach(row => {
+                html += `<div class="product-item">
+                    <div class="gallery-box" onclick="this.children[0].classList.toggle('hidden')">
+                        <img src="${row[3]}" class="prod-img">
+                        <img src="${row[4]}" class="prod-img ${row[4]?'':'hidden'}">
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-weight:700">${row[1]}</div>
+                        <div style="color:#2563eb">Stok: ${row[5]}</div>
+                    </div>
+                    <div style="display:flex; gap:5px">
+                        <button style="width:30px" onclick="adj(${row[0]}, -1)">-</button>
+                        <button style="width:30px" onclick="adj(${row[0]}, 1)">+</button>
+                        <button onclick="hapus(${row[0]})">🗑️</button>
+                    </div>
+                </div>`;
+            });
         }
-        stmt.free();
-        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center; color:#94a3b8; padding:40px;">Data kosong</p>';
+        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center">Kosong</p>';
     }
 
-    // Fungsi Navigasi Galeri
-    function nextPhoto(id) { togglePhoto(id, true); }
-    function prevPhoto(id) { togglePhoto(id, false); }
-    function togglePhoto(id, toSecondary) {
-        document.getElementById(`photo-${id}-0`).classList.toggle('hidden', toSecondary);
-        document.getElementById(`photo-${id}-1`).classList.toggle('hidden', !toSecondary);
-    }
-
-    function adjustStok(id, v) { db.run("UPDATE produk SET stok = MAX(0, stok + ?) WHERE id = ?", [v, id]); persist(); renderProduk(); }
-    function editProduk(id) {
-        const stmt = db.prepare("SELECT * FROM produk WHERE id = ?");
-        stmt.bind([id]);
-        if (stmt.step()) {
-            const res = stmt.getAsObject();
-            document.getElementById('f-id').value = res.id; document.getElementById('f-nama').value = res.nama; document.getElementById('f-kategori').value = res.kategori;
-            if (res.imgs) { try { tempImages = JSON.parse(res.imgs); } catch (e) { tempImages = ["", ""]; } }
-            else if (res.img) { tempImages = [res.img, ""]; } else { tempImages = ["", ""]; }
+    function adj(id, v) { db.run("UPDATE produk SET stok=MAX(0, stok+?) WHERE id=?", [v, id]); persist(); render(); }
+    
+    // FIX EXPORT UNTUK ANDROID 15
+    async function exportDB() {
+        try {
+            const data = db.export();
+            const blob = new Blob([data], { type: "application/octet-stream" });
+            const fileName = `backup_stok_${new Date().getTime()}.sqlite`;
             
-            document.getElementById('img-preview-main').src = tempImages[0]; document.getElementById('img-preview-main').style.display = tempImages[0] ? "block" : "none";
-            document.getElementById('img-preview-secondary').src = tempImages[1]; document.getElementById('img-preview-secondary').style.display = tempImages[1] ? "block" : "none";
-            document.getElementById('form-title').innerText = "Edit Produk"; document.getElementById('btn-cancel').classList.remove('hidden-element');
-        }
-        stmt.free(); navKe('add');
+            // Coba Web Share
+            if (navigator.canShare && navigator.share) {
+                const file = new File([blob], fileName, { type: "application/octet-stream" });
+                await navigator.share({ files: [file], title: 'Backup Stok' });
+            } else {
+                // Fallback Download Paksa
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+            }
+        } catch (e) { alert("Ekspor gagal: " + e.message); }
+        toggleMenu();
     }
 
-    function hapusProduk(id) { if(confirm("Hapus barang?")) { db.run("DELETE FROM produk WHERE id = ?", [id]); persist(); renderProduk(); } }
-    function navKe(p) {
-        document.getElementById('screen-add').classList.toggle('hidden-element', p !== 'add');
-        document.getElementById('screen-list').classList.toggle('hidden-element', p !== 'list');
-        document.getElementById('tabs-container').classList.toggle('hidden-element', p !== 'list');
-        document.getElementById('nav-add').classList.toggle('active', p === 'add');
-        document.getElementById('nav-list').classList.toggle('active', p === 'list');
-        if(p === 'list') { renderTabs(); renderProduk(); } else { resetForm(); }
+    function importDB(e) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            db = new SQL.Database(new Uint8Array(this.result));
+            persist(); location.reload();
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
     }
-    function renderTabs() { document.getElementById('tabs-container').innerHTML = cats.map(c => `<div class="tab ${c === curCat ? 'active' : ''}" onclick="setCat('${c}')">${c}</div>`).join(''); }
-    function setCat(c) { curCat = c; renderTabs(); renderProduk(); }
-    function resetForm() {
-        document.getElementById('f-id').value = ""; document.getElementById('f-nama').value = "";
-        document.getElementById('img-preview-main').style.display = "none"; document.getElementById('img-preview-secondary').style.display = "none";
-        tempImages = ["", ""]; document.getElementById('form-title').innerText = "Input Barang"; document.getElementById('btn-cancel').classList.add('hidden-element');
+
+    function persist() { localStorage.setItem('stok_db', JSON.stringify(Array.from(db.export()))); }
+    function navKe(p) {
+        document.getElementById('screen-add').classList.toggle('hidden', p!=='add');
+        document.getElementById('screen-list').classList.toggle('hidden', p!=='list');
+        document.getElementById('tabs-container').classList.toggle('hidden', p!=='list');
+        document.getElementById('nav-add').classList.toggle('active', p==='add');
+        document.getElementById('nav-list').classList.toggle('active', p==='list');
+        if(p==='list') { renderTabs(); render(); }
+    }
+    function renderTabs() {
+        document.getElementById('tabs-container').innerHTML = cats.map(c => 
+            `<div class="tab ${c===curCat?'active':''}" onclick="curCat='${c}';renderTabs();render()">${c}</div>`).join('');
+    }
+    function reset() { 
+        document.getElementById('f-nama').value=''; document.getElementById('f-id').value='';
+        document.getElementById('p-main').style.display='none'; document.getElementById('p-sec').style.display='none';
+        imgs = { 'p-main': '', 'p-sec': '' };
     }
     function toggleMenu() { document.getElementById('menuDropdown').classList.toggle('show'); }
+    function clearData() { if(confirm("Hapus semua?")) { localStorage.clear(); location.reload(); } }
+    function hapus(id) { if(confirm("Hapus?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
     
-    // Fungsi Zoom & Pinch Produk
-    let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 }, initialDistance = 0;
-    const modal = document.getElementById('fullModal'), img = document.getElementById('img-full');
-
-    function showZoom(s) {
-        if(s) { 
-            img.src = s; modal.style.display = 'flex';
-            resetZoom();
-        } 
-    }
-    function closeZoom() { if(!panning) modal.style.display = 'none'; }
-    function resetZoom() { scale = 1; pointX = 0; pointY = 0; img.style.transform = `translate(0px, 0px) scale(1)`; }
-
-    // Event Listener untuk Gestur
-    modal.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) { panning = true; start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY }; }
-        else if (e.touches.length === 2) { initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
-    });
-    modal.addEventListener('touchmove', e => {
-        e.preventDefault();
-        if (e.touches.length === 1 && panning) {
-            panning = true; pointX = e.touches[0].clientX - start.x; pointY = e.touches[0].clientY - start.y;
-            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-        } else if (e.touches.length === 2) {
-            panning = false;
-            const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            const delta = currentDistance / initialDistance;
-            scale = Math.min(Math.max(1, scale * delta), 4);
-            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-            initialDistance = currentDistance;
-        }
-    });
-    modal.addEventListener('touchend', e => { panning = false; });
-
-    function triggerImport() { document.getElementById('importFile').click(); toggleMenu(); }
-    function importDB(e) {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function() { try {
-            db = new SQL.Database(new Uint8Array(this.result));
-            db.exec("SELECT count(*) FROM produk"); // Verifikasi
-            persist(); alert("Import berhasil!"); location.reload();
-        } catch (err) { alert("File tidak valid: " + err.message); } };
-        reader.readAsArrayBuffer(file);
-        e.target.value = '';
-    }
-    function clearData() { if(confirm("Hapus semua data?")) { localStorage.removeItem('stok_db'); location.reload(); } }
     window.onload = initSQL;
 </script>
 </body>
