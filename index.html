@@ -2,14 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v5.2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+    <title>Stok Strip Pro v5.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #f1f5f9; height: 100vh; overflow: hidden; }
         
-        /* FIX TOTAL ZOOM */
+        /* FIX TOTAL: FORCE FULL SCREEN ZOOM */
         #zoom-layer { 
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
             background: #000; z-index: 999999; 
@@ -20,49 +20,54 @@
         #zoom-layer.active { visibility: visible; opacity: 1; }
 
         .zoom-header { 
-            position: absolute; top: 10px; right: 10px; z-index: 1000001;
+            position: absolute; top: env(safe-area-inset-top, 10px); right: 10px; z-index: 1000001;
         }
         .zoom-close { 
-            color: white; font-size: 18px; font-weight: bold; 
-            background: rgba(255,0,0,0.9); padding: 12px 25px; 
-            border-radius: 8px; cursor: pointer; border: 2px solid white;
+            color: white; font-size: 16px; font-weight: bold; 
+            background: #ff0000; padding: 12px 20px; 
+            border-radius: 5px; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         
         .swipe-wrapper { 
-            width: 100vw; height: 100vh; display: flex; 
+            width: 100%; height: 100%; display: flex; 
             overflow-x: auto; scroll-snap-type: x mandatory;
+            background: #000;
         }
         .swipe-slide { 
             min-width: 100vw; height: 100vh; scroll-snap-align: start;
             display: flex; align-items: center; justify-content: center;
-            background: black;
+            overflow: auto; /* Memungkinkan scroll jika gambar sangat panjang */
         }
-        /* PAKSA GAMBAR BESAR */
+        
+        /* INI KUNCI ZOOM NYA */
         .swipe-slide img { 
-            width: 100%; height: 100%; object-fit: contain; 
+            width: 100vw; /* Paksa lebar sesuai layar */
+            height: auto; /* Biarkan tinggi mengikuti proporsi agar tidak gepeng */
+            max-height: none; /* Hapus batasan tinggi sebelumnya */
+            object-fit: contain;
             display: block;
         }
 
         .swipe-hint {
-            position: absolute; bottom: 30px; width: 100%;
-            text-align: center; color: white; font-weight: bold;
-            text-shadow: 2px 2px 4px #000; pointer-events: none;
+            position: absolute; bottom: 20px; width: 100%;
+            text-align: center; color: yellow; font-weight: bold;
+            text-shadow: 1px 1px 3px #000; pointer-events: none; z-index: 1000002;
         }
 
-        /* UI Konten Dasar */
+        /* UI Utama */
         .header { background: #1e293b; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .main-content { height: calc(100vh - 140px); overflow-y: auto; padding: 15px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .form-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
         .item-list { background: white; border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; border: 1px solid #eee; }
-        .thumb { width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #ddd; flex-shrink: 0; }
+        .thumb { width: 80px; height: 80px; border-radius: 10px; overflow: hidden; background: #ddd; flex-shrink: 0; }
         .thumb img { width: 100%; height: 100%; object-fit: cover; }
         .btn-save { width: 100%; padding: 15px; background: #2563eb; color: white; border: none; border-radius: 10px; font-weight: bold; }
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; height: 70px; border-top: 1px solid #ddd; z-index: 1000; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; height: 70px; border-top: 1px solid #ddd; }
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #999; }
         .nav-btn.active { color: #2563eb; }
         .hidden { display: none !important; }
-        .dropdown { position: absolute; top: 55px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 2000; display: none; width: 200px; }
+        .dropdown { position: absolute; top: 55px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 2000; display: none; width: 180px; }
         .dropdown div { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; }
     </style>
 </head>
@@ -73,11 +78,11 @@
         <div class="zoom-close" onclick="closeZoom()">TUTUP [X]</div>
     </div>
     <div class="swipe-wrapper" id="swipe-wrapper"></div>
-    <div class="swipe-hint" id="swipe-hint">← GESER FOTO →</div>
+    <div id="swipe-hint" class="swipe-hint">← GESER UNTUK FOTO LAIN →</div>
 </div>
 
 <div class="header">
-    <div style="font-weight: bold;">STOK STRIP v5.2</div>
+    <div style="font-weight: bold;">STOK STRIP v5.3</div>
     <button onclick="toggleMenu()" style="background:none; border:none; color:white; font-size:24px;">⋮</button>
 </div>
 
@@ -142,10 +147,11 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const scale = 1200 / Math.max(img.width, img.height); // Resolusi lebih tinggi
+                    // Simpan dengan kualitas tinggi (1500px) agar saat di-zoom tetap jernih
+                    const scale = 1500 / Math.max(img.width, img.height);
                     canvas.width = img.width * scale; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    imgs['p'+slot] = canvas.toDataURL('image/jpeg', 0.8);
+                    imgs['p'+slot] = canvas.toDataURL('image/jpeg', 0.85);
                 };
                 img.src = e.target.result;
             };
@@ -184,22 +190,20 @@
         if(res) {
             res.values.forEach(r => {
                 h += `<div class="item-list">
-                    <div class="thumb" onclick="openZoom('${r[3]}','${r[4]}')">
-                        <img src="${r[3]}">
-                    </div>
+                    <div class="thumb" onclick="openZoom('${r[3]}','${r[4]}')"><img src="${r[3]}"></div>
                     <div style="flex:1" onclick="openZoom('${r[3]}','${r[4]}')">
                         <div style="font-weight:bold; font-size:15px">${r[1]}</div>
                         <div style="color:#2563eb; font-weight:bold; margin:5px 0">Stok: ${r[5]}</div>
                         <div style="display:flex; gap:10px">
-                            <button style="padding:8px 20px; font-weight:bold" onclick="event.stopPropagation(); adj(${r[0]},1)">+</button>
-                            <button style="padding:8px 20px; font-weight:bold" onclick="event.stopPropagation(); adj(${r[0]},-1)">-</button>
+                            <button style="padding:10px 25px; font-weight:bold; border-radius:5px; border:1px solid #ccc; background:#fff" onclick="event.stopPropagation(); adj(${r[0]},1)">+</button>
+                            <button style="padding:10px 25px; font-weight:bold; border-radius:5px; border:1px solid #ccc; background:#fff" onclick="event.stopPropagation(); adj(${r[0]},-1)">-</button>
                         </div>
                     </div>
                     <button onclick="edit(${r[0]})" style="background:orange; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold">EDIT</button>
                 </div>`;
             });
         }
-        document.getElementById('list-render').innerHTML = h || '<p style="text-align:center; padding:20px">Kosong</p>';
+        document.getElementById('list-render').innerHTML = h || '<p style="text-align:center; padding:20px">Data tidak ditemukan</p>';
     }
 
     function nav(p) {
