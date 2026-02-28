@@ -3,67 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v4.8</title>
+    <title>Stok Strip Pro v5.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { background: #f1f5f9; height: 100vh; overflow: hidden; }
         
-        /* FULLSCREEN ZOOM - PERBAIKAN TOTAL */
+        /* ZOOM LAYER - METODE VISIBILITY (ANTI-BUG ANDROID 15) */
         #zoom-layer { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.95); z-index: 99999; 
-            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: #000; z-index: 999999; 
+            visibility: hidden; opacity: 0;
+            display: flex; flex-direction: column;
+            transition: opacity 0.2s;
         }
-        #zoom-img { max-width: 98%; max-height: 80vh; object-fit: contain; border: 2px solid #fff; border-radius: 8px; }
-        .zoom-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 50px; font-weight: bold; padding: 10px; }
-        .zoom-nav { display: flex; gap: 20px; margin-top: 20px; }
-        .btn-nav-zoom { background: #2563eb; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
+        #zoom-layer.active { visibility: visible; opacity: 1; }
 
-        /* UI Utama */
+        .zoom-header { height: 70px; display: flex; justify-content: flex-end; align-items: center; padding: 0 25px; }
+        .zoom-close { color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 10px #fff; }
+        
+        .swipe-wrapper { 
+            flex: 1; display: flex; overflow-x: auto; 
+            scroll-snap-type: x mandatory; border: 2px solid red; /* Border deteksi bug */
+        }
+        .swipe-slide { 
+            min-width: 100vw; height: 100%; scroll-snap-align: start;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .swipe-slide img { max-width: 95%; max-height: 80vh; object-fit: contain; border: 3px solid white; }
+
+        /* UI Konten */
         .header { background: #1e293b; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .main-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; }
+        .main-content { height: calc(100vh - 140px); overflow-y: auto; padding: 15px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .form-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
         
-        .preview-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .p-img { width: 70px; height: 70px; object-fit: cover; border: 2px solid #2563eb; border-radius: 5px; display: none; }
+        .preview-row { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center; }
+        .p-img { width: 80px; height: 80px; object-fit: cover; border: 2px solid #2563eb; border-radius: 8px; display: none; }
         .p-img.show { display: block; }
 
         .item-list { background: white; border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; border: 1px solid #eee; }
-        .thumb { width: 75px; height: 75px; border-radius: 8px; overflow: hidden; background: #eee; flex-shrink: 0; border: 1px solid #ddd; }
+        .thumb { width: 85px; height: 85px; border-radius: 10px; overflow: hidden; background: #ddd; flex-shrink: 0; }
         .thumb img { width: 100%; height: 100%; object-fit: cover; }
         
         .btn-save { width: 100%; padding: 15px; background: #2563eb; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; }
         .btn-batal { width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #ccc; border-radius: 10px; color: #666; font-weight: bold; }
         
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; height: 70px; border-top: 1px solid #ddd; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; height: 70px; border-top: 1px solid #ddd; z-index: 1000; }
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #999; }
         .nav-btn.active { color: #2563eb; }
         .hidden { display: none !important; }
-        .dropdown { position: absolute; top: 55px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 1000; display: none; width: 200px; }
+        
+        .dropdown { position: absolute; top: 55px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 2000; display: none; width: 200px; }
         .dropdown div { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="zoom-layer">
-    <div class="zoom-close" onclick="closeZoom()">&times;</div>
-    <img id="zoom-img" src="">
-    <div class="zoom-nav" id="zoom-nav-btns">
-        <button class="btn-nav-zoom" onclick="changeZoom(1)">FOTO 1</button>
-        <button class="btn-nav-zoom" onclick="changeZoom(2)">FOTO 2</button>
+    <div class="zoom-header">
+        <div class="zoom-close" onclick="closeZoom()">TUTUP [X]</div>
     </div>
-    <p style="color:white; margin-top:15px; font-size: 12px;">Klik 'Foto 2' untuk ganti gambar</p>
+    <div class="swipe-wrapper" id="swipe-wrapper"></div>
+    <div style="color:white; text-align:center; padding:10px; background:red;">← GESER FOTO DI SINI →</div>
 </div>
 
 <div class="header">
-    <div style="font-weight: bold;">STOK STRIP v4.8</div>
+    <div style="font-weight: bold;">STOK STRIP v5.0</div>
     <button onclick="toggleMenu()" style="background:none; border:none; color:white; font-size:24px;">⋮</button>
 </div>
 
 <div id="drop-menu" class="dropdown">
-    <div onclick="exportDB()">📤 Export Backup (.sqlite)</div>
+    <div onclick="exportDB()">📤 Export Backup</div>
     <div onclick="document.getElementById('in-restore').click()">📥 Restore Data</div>
     <div onclick="fullReset()" style="color:red">⚠️ Reset Data</div>
 </div>
@@ -74,7 +85,7 @@
         <div class="card">
             <h3 id="form-title">Input Produk</h3>
             <input type="hidden" id="f-id">
-            <select id="f-kat" class="form-input" style="margin-top:10px">
+            <select id="f-kat" class="form-input">
                 <option value="HONDA">HONDA</option>
                 <option value="YAMAHA">YAMAHA</option>
                 <option value="SUZUKI">SUZUKI</option>
@@ -110,7 +121,6 @@
 <script>
     let SQL, db, curCat = "HONDA", slot = 1;
     let imgs = { p1: '', p2: '' };
-    let curZoomImgs = { p1: '', p2: '' };
 
     async function init() {
         const config = { locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` };
@@ -132,9 +142,8 @@
                     const scale = 600 / Math.max(img.width, img.height);
                     canvas.width = img.width * scale; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const b64 = canvas.toDataURL('image/jpeg', 0.7);
-                    imgs['p'+slot] = b64;
-                    document.getElementById('p'+slot).src = b64;
+                    imgs['p'+slot] = canvas.toDataURL('image/jpeg', 0.7);
+                    document.getElementById('p'+slot).src = imgs['p'+slot];
                     document.getElementById('p'+slot).classList.add('show');
                 };
                 img.src = e.target.result;
@@ -157,24 +166,27 @@
         document.getElementById('f-nama').value = r[1];
         document.getElementById('f-kat').value = r[2];
         imgs.p1 = r[3] || ''; imgs.p2 = r[4] || '';
-        if(imgs.p1) { document.getElementById('p1').src = imgs.p1; document.getElementById('p1').classList.add('show'); }
-        if(imgs.p2) { document.getElementById('p2').src = imgs.p2; document.getElementById('p2').classList.add('show'); }
+        document.getElementById('p1').src = imgs.p1; document.getElementById('p1').classList.toggle('show', !!imgs.p1);
+        document.getElementById('p2').src = imgs.p2; document.getElementById('p2').classList.toggle('show', !!imgs.p2);
         document.getElementById('form-title').innerText = "Edit Produk";
         nav('add');
     }
 
-    /* ZOOM FUNCTIONS */
+    /* EMERGENCY ZOOM FIX */
     function openZoom(i1, i2) {
-        curZoomImgs.p1 = i1;
-        curZoomImgs.p2 = i2;
-        document.getElementById('zoom-img').src = i1;
-        document.getElementById('zoom-nav-btns').style.display = (i2 && i2 !== 'null' && i2 !== '') ? 'flex' : 'none';
-        document.getElementById('zoom-layer').style.display = 'flex';
+        const wrapper = document.getElementById('swipe-wrapper');
+        let html = `<div class="swipe-slide"><img src="${i1}"></div>`;
+        if(i2 && i2 !== 'null' && i2 !== '') {
+            html += `<div class="swipe-slide"><img src="${i2}"></div>`;
+        }
+        wrapper.innerHTML = html;
+        document.getElementById('zoom-layer').classList.add('active');
+        wrapper.scrollLeft = 0;
     }
-    function changeZoom(s) {
-        document.getElementById('zoom-img').src = curZoomImgs['p'+s];
+
+    function closeZoom() { 
+        document.getElementById('zoom-layer').classList.remove('active'); 
     }
-    function closeZoom() { document.getElementById('zoom-layer').style.display = 'none'; }
 
     function render() {
         const q = document.getElementById('q').value;
@@ -185,14 +197,13 @@
                 h += `<div class="item-list">
                     <div class="thumb" onclick="openZoom('${r[3]}','${r[4]}')">
                         <img src="${r[3]}">
-                        ${r[4] ? '<div style="position:absolute; bottom:0; right:0; background:blue; color:white; font-size:9px; padding:2px">2 FOTO</div>' : ''}
                     </div>
-                    <div style="flex:1">
+                    <div style="flex:1" onclick="openZoom('${r[3]}','${r[4]}')">
                         <div style="font-weight:bold; font-size:14px">${r[1]}</div>
                         <div style="color:#2563eb; font-weight:bold; margin:5px 0">Stok: ${r[5]}</div>
                         <div>
-                            <button style="padding:5px 15px" onclick="adj(${r[0]},1)">+</button>
-                            <button style="padding:5px 15px" onclick="adj(${r[0]},-1)">-</button>
+                            <button style="padding:5px 15px" onclick="event.stopPropagation(); adj(${r[0]},1)">+</button>
+                            <button style="padding:5px 15px" onclick="event.stopPropagation(); adj(${r[0]},-1)">-</button>
                         </div>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:5px">
