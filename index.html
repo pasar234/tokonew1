@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v3.2</title>
+    <title>Stok Strip Pro v3.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -22,18 +22,23 @@
         .media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
         .btn-media { padding: 12px; border: 2px dashed #cbd5e1; border-radius: 10px; text-align: center; font-size: 0.75rem; font-weight: bold; background: #f8fafc; cursor: pointer; }
         .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        
+        /* List Produk */
         .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #f1f5f9; }
-        .img-stack { width: 70px; height: 70px; position: relative; border-radius: 10px; overflow: hidden; background: #eee; flex-shrink: 0; }
-        .prod-img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        .img-container { width: 75px; height: 75px; border-radius: 10px; overflow: hidden; background: #eee; flex-shrink: 0; position: relative; }
+        .prod-img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Zoom Modal */
+        #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        #zoom-img { max-width: 100%; max-height: 80vh; border-radius: 10px; }
+
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; border-top: 1px solid #eee; height: 70px; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: bold; font-size: 0.75rem; }
         .nav-item.active { color: #2563eb; }
-        .hidden { display: none !important; }
-        #loading { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .preview-box { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center; }
         .preview-box img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; display: none; border: 2px solid #2563eb; }
-        .action-btns { display: flex; flex-direction: column; gap: 5px; }
-        .btn-edit { background: #f59e0b; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .hidden { display: none !important; }
+        #loading { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -45,8 +50,13 @@
     <button class="menu-btn" onclick="toggleMenu()">⋮</button>
 </div>
 
+<div id="zoom-modal" onclick="this.style.display='none'">
+    <img id="zoom-img" src="">
+    <p style="color:white; position:absolute; bottom:30px">Klik dimana saja untuk tutup</p>
+</div>
+
 <div id="menuDropdown" class="menu-dropdown">
-    <div class="menu-item" onclick="exportDB()">📤 Export/Share (.sqlite)</div>
+    <div class="menu-item" onclick="exportDB()">📤 Export & Share (.sqlite)</div>
     <div class="menu-item" onclick="document.getElementById('importFile').click(); toggleMenu()">📥 Restore Data</div>
     <div class="menu-item" onclick="clearData()" style="color:red">⚠️ Reset & Hapus Semua</div>
     <input type="file" id="importFile" class="hidden" onchange="importDB(event)">
@@ -84,7 +94,7 @@
     </div>
 
     <div id="screen-list" class="hidden">
-        <input type="text" id="q-search" class="form-input" placeholder="🔍 Cari nama striping..." oninput="render()">
+        <input type="text" id="q-search" class="form-input" placeholder="🔍 Cari nama..." oninput="render()">
         <div id="list-render"></div>
     </div>
 </div>
@@ -105,14 +115,9 @@
             SQL = await initSqlJs(config);
             const saved = localStorage.getItem('stok_db');
             db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
-            
-            // AUTO-REPAIR: Pastikan kolom lengkap
             db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
-            try { db.run("SELECT img2 FROM produk LIMIT 1"); } 
-            catch(e) { db.run("ALTER TABLE produk ADD COLUMN img2 TEXT;"); }
-
             document.getElementById('loading').style.display = 'none';
-        } catch (e) { alert("Sistem Error. Silakan Reset Database."); }
+        } catch (e) { alert("Error database. Silakan Reset Database."); }
     }
 
     function pilihFoto(slot) { targetSlot = slot; document.getElementById('file-input').click(); }
@@ -124,10 +129,12 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const scale = 500 / img.width;
-                    canvas.width = 500; canvas.height = img.height * scale;
-                    canvas.getContext('2d').drawImage(img, 0, 0, 500, canvas.height);
-                    const b64 = canvas.toDataURL('image/jpeg', 0.6);
+                    const max = 400; // Perkecil ukuran agar tidak macet
+                    const scale = max / Math.max(img.width, img.height);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const b64 = canvas.toDataURL('image/jpeg', 0.5);
                     imgs['p'+targetSlot] = b64;
                     document.getElementById('p'+targetSlot).src = b64;
                     document.getElementById('p'+targetSlot).style.display = 'block';
@@ -136,14 +143,13 @@
             };
             reader.readAsDataURL(input.files[0]);
         }
-        input.value = '';
     }
 
     function simpan() {
         const nama = document.getElementById('f-nama').value;
         const kat = document.getElementById('f-kategori').value;
         const id = document.getElementById('f-id').value;
-        if(!nama) return alert("Nama tidak boleh kosong!");
+        if(!nama) return alert("Nama wajib diisi!");
 
         try {
             if(id) {
@@ -152,10 +158,45 @@
                 db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [nama, kat, imgs.p1, imgs.p2]);
             }
             persist(); reset(); navKe('list');
-        } catch (e) { alert("Gagal Simpan. Silakan klik 'Reset Database' di menu."); }
+        } catch (e) { alert("Simpan gagal. Silakan Reset Database."); }
     }
 
-    function edit(id) {
+    function render() {
+        const q = document.getElementById('q-search').value;
+        const data = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`)[0];
+        let html = '';
+        if(data) {
+            data.values.forEach(r => {
+                html += `<div class="product-item">
+                    <div class="img-container" onclick="openZoom('${r[3]}')">
+                        <img src="${r[3] || ''}" class="prod-img">
+                        ${r[4] ? `<img src="${r[4]}" style="position:absolute; bottom:0; right:0; width:30px; height:30px; border:1px solid white" onclick="event.stopPropagation(); openZoom('${r[4]}')">` : ''}
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-weight:700; font-size:0.9rem">${r[1]}</div>
+                        <div style="color:#2563eb; font-weight:800">Stok: ${r[5]}</div>
+                        <div style="margin-top:5px; display:flex; gap:8px">
+                            <button style="padding:4px 12px" onclick="adj(${r[0]},1)">+</button>
+                            <button style="padding:4px 12px" onclick="adj(${r[0]},-1)">-</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:5px">
+                        <button onclick="editData(${r[0]})" style="background:#f59e0b; color:white; border:none; padding:5px; border-radius:5px; font-size:0.7rem">EDIT</button>
+                        <button onclick="hapus(${r[0]})" style="color:red; background:none; border:none; font-size:0.7rem">Hapus</button>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Kosong</p>';
+    }
+
+    function openZoom(src) {
+        if(!src || src === 'null') return;
+        document.getElementById('zoom-img').src = src;
+        document.getElementById('zoom-modal').style.display = 'flex';
+    }
+
+    function editData(id) {
         const res = db.exec("SELECT * FROM produk WHERE id=?", [id])[0].values[0];
         document.getElementById('f-id').value = res[0];
         document.getElementById('f-nama').value = res[1];
@@ -167,40 +208,16 @@
         navKe('add');
     }
 
-    function render() {
-        const q = document.getElementById('q-search').value;
-        const data = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`)[0];
-        let html = '';
-        if(data) {
-            data.values.forEach(r => {
-                html += `<div class="product-item">
-                    <div class="img-stack">
-                        <img src="${r[3] || ''}" class="prod-img">
-                        <img src="${r[4] || ''}" class="prod-img ${r[4]?'':'hidden'}" style="opacity:0.4; transform:scale(0.8)">
-                    </div>
-                    <div style="flex:1">
-                        <div style="font-weight:700">${r[1]}</div>
-                        <div style="color:#2563eb; font-weight:800">Stok: ${r[5]}</div>
-                        <div style="margin-top:5px">
-                            <button style="padding:5px 12px" onclick="adj(${r[0]},1)">+</button>
-                            <button style="padding:5px 12px" onclick="adj(${r[0]},-1)">-</button>
-                        </div>
-                    </div>
-                    <div class="action-btns">
-                        <button class="btn-edit" onclick="edit(${r[0]})">EDIT</button>
-                        <button style="color:red;border:none;background:none;font-size:0.7rem" onclick="hapus(${r[0]})">Hapus</button>
-                    </div>
-                </div>`;
-            });
-        }
-        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Tidak ada data</p>';
-    }
-
     async function exportDB() {
-        const data = db.export();
-        const file = new File([data], `stok_backup.sqlite`, { type: "application/octet-stream" });
-        if (navigator.share) await navigator.share({ files: [file], title: 'Backup Stok' });
-        else alert("Gunakan Chrome Android terbaru.");
+        try {
+            const data = db.export();
+            const file = new File([data], `stok_backup.sqlite`, { type: "application/octet-stream" });
+            if (navigator.share) {
+                await navigator.share({ files: [file], title: 'Backup Stok Strip' });
+            } else {
+                alert("Browser tidak mendukung share. Gunakan Chrome Android.");
+            }
+        } catch (e) { alert("Klik OK, lalu pilih WhatsApp untuk simpan."); }
     }
 
     function importDB(e) {
@@ -233,10 +250,10 @@
         imgs = { p1: '', p2: '' };
     }
     function toggleMenu() { document.getElementById('menuDropdown').classList.toggle('show'); }
-    function hapus(id) { if(confirm("Hapus barang?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
-    function clearData() { if(confirm("Reset total? Semua data akan hilang.")) { localStorage.clear(); location.reload(); } }
+    function hapus(id) { if(confirm("Hapus?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
+    function clearData() { if(confirm("Reset total database?")) { localStorage.clear(); location.reload(); } }
     
     window.onload = initSQL;
 </script>
 </body>
-    </html>
+</html>
