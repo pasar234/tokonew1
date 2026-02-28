@@ -3,36 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v4.5</title>
+    <title>Stok Strip Pro v4.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #f4f7f6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .header-main { background: #1e293b; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; z-index: 100; }
+        .header-main { background: #1e293b; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; }
         
-        /* Zoom Swipe System */
-        #zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; flex-direction: column; }
-        .close-zoom { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; z-index: 10000; font-weight: bold; }
-        .swipe-container { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-        .swipe-container::-webkit-scrollbar { display: none; }
+        /* ZOOM SYSTEM FIXED */
+        #zoom-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; }
+        .close-zoom { position: absolute; top: 20px; right: 20px; color: white; font-size: 40px; font-weight: bold; z-index: 10001; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .swipe-container { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
         .swipe-item { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; }
-        .swipe-item img { max-width: 100%; max-height: 85vh; object-fit: contain; }
-        .swipe-hint { color: white; text-align: center; padding: 15px; background: rgba(0,0,0,0.5); font-size: 0.8rem; }
+        .swipe-item img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+        .swipe-hint { position: absolute; bottom: 30px; width: 100%; text-align: center; color: white; background: rgba(0,0,0,0.4); padding: 10px 0; font-size: 0.8rem; }
 
-        /* Form & List UI */
         .main-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .form-input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 10px; font-size: 1rem; }
-        .preview-box { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center; }
-        .preview-box .img-prev { width: 85px; height: 85px; object-fit: cover; border-radius: 10px; border: 2px solid #2563eb; position: relative; display: none; }
-        .preview-box .img-prev.active { display: block; }
         
+        .preview-box { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
+        .img-prev { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 2px solid #2563eb; display: none; }
+        .img-prev.active { display: block; }
+        
+        /* UI Produk */
         .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #f1f5f9; }
-        .thumb-box { width: 75px; height: 75px; border-radius: 10px; overflow: hidden; background: #eee; flex-shrink: 0; position: relative; }
+        .thumb-box { width: 80px; height: 80px; border-radius: 12px; overflow: hidden; background: #eee; flex-shrink: 0; position: relative; border: 1px solid #ddd; }
         .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge-2 { position: absolute; bottom: 0; right: 0; background: #2563eb; color: white; font-size: 9px; padding: 2px 4px; border-radius: 4px 0 0 0; }
+        .badge-2 { position: absolute; top: 2px; right: 2px; background: #2563eb; color: white; font-size: 8px; padding: 2px 4px; border-radius: 4px; font-weight: bold; }
 
-        .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+        .btn-cancel { width: 100%; padding: 14px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; border-top: 1px solid #eee; height: 70px; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: bold; font-size: 0.75rem; }
         .nav-item.active { color: #2563eb; }
@@ -44,21 +46,19 @@
 <body>
 
 <div id="zoom-overlay">
-    <span class="close-zoom" onclick="document.getElementById('zoom-overlay').style.display='none'">&times;</span>
+    <div class="close-zoom" onclick="closeZoom()">&times;</div>
     <div class="swipe-container" id="swipe-box"></div>
-    <div class="swipe-hint" id="swipe-info">Geser ke samping untuk foto lain</div>
+    <div class="swipe-hint" id="swipe-hint">← Geser untuk foto lain →</div>
 </div>
 
 <div class="header-main">
-    <div>STOK STRIP v4.5</div>
+    <div>STOK STRIP v4.6</div>
     <button onclick="document.getElementById('m-drop').classList.toggle('show')" style="background:none; border:none; color:white; font-size:1.5rem">⋮</button>
 </div>
 
 <div id="m-drop" class="menu-dropdown">
     <div style="padding:15px; border-bottom:1px solid #eee" onclick="exportData()">📤 Download Backup</div>
-    <div style="padding:15px; border-bottom:1px solid #eee" onclick="document.getElementById('f-import').click()">📥 Restore Data</div>
     <div style="padding:15px; color:red" onclick="resetAll()">⚠️ Hapus Semua Data</div>
-    <input type="file" id="f-import" class="hidden" onchange="importDB(event)">
 </div>
 
 <div class="main-content">
@@ -75,8 +75,8 @@
             <input type="text" id="f-nama" class="form-input" placeholder="Nama Barang...">
             
             <div class="preview-box">
-                <img id="p1" class="img-prev" onclick="this.classList.remove('active'); imgs.p1=''">
-                <img id="p2" class="img-prev" onclick="this.classList.remove('active'); imgs.p2=''">
+                <img id="p1" class="img-prev" onclick="imgs.p1=''; this.classList.remove('active')">
+                <img id="p2" class="img-prev" onclick="imgs.p2=''; this.classList.remove('active')">
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px">
@@ -86,12 +86,13 @@
             <input type="file" id="cam" class="hidden" accept="image/*" onchange="process(this)">
 
             <button class="btn-primary" onclick="simpan()">SIMPAN PRODUK</button>
+            <button class="btn-cancel" onclick="batalEdit()">BATAL / KEMBALI</button>
         </div>
     </div>
 
     <div id="screen-list" class="hidden">
         <div id="tab-bar" style="display:flex; background:white; margin-bottom:10px; overflow-x:auto"></div>
-        <input type="text" id="q" class="form-input" placeholder="🔍 Cari nama..." oninput="render()">
+        <input type="text" id="q" class="form-input" placeholder="🔍 Cari..." oninput="render()">
         <div id="list-render"></div>
     </div>
 </div>
@@ -111,8 +112,6 @@
         const saved = localStorage.getItem('stok_db');
         db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
         db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
-        // Ensure column img2 exists
-        try { db.run("SELECT img2 FROM produk LIMIT 1"); } catch(e) { db.run("ALTER TABLE produk ADD COLUMN img2 TEXT;"); }
     }
 
     function pick(s) { slot = s; document.getElementById('cam').click(); }
@@ -124,14 +123,14 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const max = 500;
+                    const max = 600;
                     const scale = max / Math.max(img.width, img.height);
                     canvas.width = img.width * scale; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const b64 = canvas.toDataURL('image/jpeg', 0.6);
+                    const b64 = canvas.toDataURL('image/jpeg', 0.7);
                     imgs['p'+slot] = b64;
-                    document.getElementById('p'+slot).src = b64;
-                    document.getElementById('p'+slot).classList.add('active');
+                    const el = document.getElementById('p'+slot);
+                    el.src = b64; el.classList.add('active');
                 };
                 img.src = e.target.result;
             };
@@ -141,10 +140,10 @@
 
     function simpan() {
         const n = document.getElementById('f-nama').value, k = document.getElementById('f-kat').value, id = document.getElementById('f-id').value;
-        if(!n) return alert("Nama kosong!");
+        if(!n) return alert("Nama wajib diisi!");
         if(id) db.run("UPDATE produk SET nama=?, kategori=?, img1=?, img2=? WHERE id=?", [n, k, imgs.p1, imgs.p2, id]);
         else db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [n, k, imgs.p1, imgs.p2]);
-        persist(); reset(); navKe('list');
+        persist(); batalEdit(); navKe('list');
     }
 
     function edit(id) {
@@ -154,22 +153,36 @@
         document.getElementById('f-kat').value = r[2];
         imgs.p1 = r[3] || ''; imgs.p2 = r[4] || '';
         
-        document.getElementById('p1').src = imgs.p1;
-        document.getElementById('p1').classList.toggle('active', !!imgs.p1);
-        document.getElementById('p2').src = imgs.p2;
-        document.getElementById('p2').classList.toggle('active', !!imgs.p2);
+        if(imgs.p1) { document.getElementById('p1').src = imgs.p1; document.getElementById('p1').classList.add('active'); }
+        if(imgs.p2) { document.getElementById('p2').src = imgs.p2; document.getElementById('p2').classList.add('active'); }
         
         document.getElementById('form-title').innerText = "Edit Produk";
         navKe('add');
     }
 
-    function openSwipe(i1, i2) {
-        let h = `<div class="swipe-item"><img src="${i1}"></div>`;
-        if(i2) h += `<div class="swipe-item"><img src="${i2}"></div>`;
-        document.getElementById('swipe-box').innerHTML = h;
-        document.getElementById('swipe-info').style.display = i2 ? 'block' : 'none';
+    function batalEdit() {
+        document.getElementById('f-id').value=''; 
+        document.getElementById('f-nama').value=''; 
+        document.getElementById('p1').classList.remove('active'); 
+        document.getElementById('p2').classList.remove('active');
+        imgs = { p1: '', p2: '' }; 
+        document.getElementById('form-title').innerText = "Input Produk";
+        navKe('list');
+    }
+
+    function openZoom(i1, i2) {
+        let html = `<div class="swipe-item"><img src="${i1}"></div>`;
+        if(i2 && i2 !== 'null' && i2 !== '') {
+            html += `<div class="swipe-item"><img src="${i2}"></div>`;
+            document.getElementById('swipe-hint').innerText = "← Geser untuk foto lain →";
+        } else {
+            document.getElementById('swipe-hint').innerText = "Foto Tunggal";
+        }
+        document.getElementById('swipe-box').innerHTML = html;
         document.getElementById('zoom-overlay').style.display = 'flex';
     }
+
+    function closeZoom() { document.getElementById('zoom-overlay').style.display = 'none'; }
 
     function render() {
         const q = document.getElementById('q').value;
@@ -178,7 +191,7 @@
         if(res) {
             res.values.forEach(r => {
                 h += `<div class="product-item">
-                    <div class="thumb-box" onclick="openSwipe('${r[3]}','${r[4]}')">
+                    <div class="thumb-box" onclick="openZoom('${r[3]}','${r[4]}')">
                         <img src="${r[3]}">
                         ${r[4] ? '<span class="badge-2">2 FOTO</span>' : ''}
                     </div>
@@ -186,12 +199,12 @@
                         <div style="font-weight:700; font-size:0.9rem">${r[1]}</div>
                         <div style="color:#2563eb; font-weight:800">Stok: ${r[5]}</div>
                         <div style="margin-top:5px">
-                            <button style="padding:4px 12px" onclick="adj(${r[0]},1)">+</button>
-                            <button style="padding:4px 12px" onclick="adj(${r[0]},-1)">-</button>
+                            <button style="padding:5px 15px" onclick="adj(${r[0]},1)">+</button>
+                            <button style="padding:5px 15px" onclick="adj(${r[0]},-1)">-</button>
                         </div>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:8px">
-                        <button onclick="edit(${r[0]})" style="background:#f59e0b; color:white; border:none; padding:6px; border-radius:6px; font-size:0.7rem; font-weight:bold">EDIT</button>
+                        <button onclick="edit(${r[0]})" style="background:#f59e0b; color:white; border:none; padding:8px; border-radius:8px; font-size:0.7rem; font-weight:bold">EDIT</button>
                         <button onclick="hapus(${r[0]})" style="color:red; background:none; border:none; font-size:0.7rem">Hapus</button>
                     </div>
                 </div>`;
@@ -202,36 +215,26 @@
 
     function adj(id, v) { db.run("UPDATE produk SET stok=MAX(0, stok+?) WHERE id=?", [v, id]); persist(); render(); }
     function persist() { localStorage.setItem('stok_db', JSON.stringify(Array.from(db.export()))); }
+    
     function navKe(p) {
         document.getElementById('screen-add').classList.toggle('hidden', p!=='add');
         document.getElementById('screen-list').classList.toggle('hidden', p!=='list');
         document.getElementById('nav-add').classList.toggle('active', p==='add');
         document.getElementById('nav-list').classList.toggle('active', p==='list');
         if(p==='list') {
-            document.getElementById('tab-bar').innerHTML = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"].map(c => 
+            const cats = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"];
+            document.getElementById('tab-bar').innerHTML = cats.map(c => 
                 `<div style="flex:1; text-align:center; padding:15px; font-size:0.7rem; font-weight:800; cursor:pointer; border-bottom:3px solid ${c===curCat?'#2563eb':'#eee'}; color:${c===curCat?'#2563eb':'#64748b'}" onclick="curCat='${c}';navKe('list')">${c}</div>`).join('');
             render();
         }
     }
-    function reset() { 
-        document.getElementById('f-id').value=''; document.getElementById('f-nama').value=''; 
-        document.getElementById('p1').classList.remove('active'); document.getElementById('p2').classList.remove('active');
-        imgs = { p1: '', p2: '' }; document.getElementById('form-title').innerText = "Input Produk";
-    }
-    function hapus(id) { if(confirm("Hapus?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
-    function resetAll() { if(confirm("Hapus permanen semua data?")) { localStorage.clear(); location.reload(); } }
     
     function exportData() {
-        const data = db.export();
-        const b = new Blob([data], {type:"application/octet-stream"});
-        const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "stok_striping.sqlite"; a.click();
+        const b = new Blob([db.export()], {type:"application/octet-stream"});
+        const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "stok_strip.sqlite"; a.click();
     }
-    function importDB(e) {
-        const reader = new FileReader();
-        reader.onload = function() { db = new SQL.Database(new Uint8Array(this.result)); persist(); location.reload(); };
-        reader.readAsArrayBuffer(e.target.files[0]);
-    }
-
+    function resetAll() { if(confirm("Hapus semua data?")) { localStorage.clear(); location.reload(); } }
+    
     window.onload = initSQL;
 </script>
 </body>
