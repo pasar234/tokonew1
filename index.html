@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stok Strip Pro v3</title>
+    <title>Stok Strip Pro v3.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #f4f7f6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .header-main { background: #1e293b; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; z-index: 100; }
+        .header-main { background: #1e293b; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; }
         .menu-btn { background: rgba(255,255,255,0.1); border: none; color: white; font-size: 1.4rem; width: 40px; height: 40px; border-radius: 10px; }
         .menu-dropdown { position: absolute; top: 60px; right: 10px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 220px; z-index: 1000; display: none; border: 1px solid #ddd; }
         .menu-dropdown.show { display: block; }
@@ -18,7 +18,7 @@
         .tab.active { border-bottom: 4px solid #2563eb; color: #2563eb; background: #f8fafc; }
         .main-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .form-input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 10px; font-size: 1rem; }
+        .form-input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 10px; font-size: 1rem; outline: none; }
         .media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
         .btn-media { padding: 12px; border: 2px dashed #cbd5e1; border-radius: 10px; text-align: center; font-size: 0.75rem; font-weight: bold; background: #f8fafc; cursor: pointer; }
         .btn-primary { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
@@ -32,11 +32,14 @@
         #loading { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .preview-box { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center; }
         .preview-box img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; display: none; border: 2px solid #2563eb; }
+        .action-btns { display: flex; flex-direction: column; gap: 5px; }
+        .btn-edit { background: #f59e0b; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .btn-del { background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="loading">💾 Menyiapkan Data...</div>
+<div id="loading">💾 Memuat Database...</div>
 
 <div class="header-main">
     <div>STOK STRIP PRO</div>
@@ -46,7 +49,7 @@
 <div id="menuDropdown" class="menu-dropdown">
     <div class="menu-item" onclick="exportDB()">📤 Export/Share (.sqlite)</div>
     <div class="menu-item" onclick="document.getElementById('importFile').click(); toggleMenu()">📥 Restore Data</div>
-    <div class="menu-item" onclick="clearData()" style="color:red">⚠️ Hapus Semua</div>
+    <div class="menu-item" onclick="clearData()" style="color:red">⚠️ Reset Database</div>
     <input type="file" id="importFile" class="hidden" onchange="importDB(event)">
 </div>
 
@@ -55,7 +58,7 @@
 <div class="main-content">
     <div id="screen-add">
         <div class="card">
-            <h3>Input Barang</h3>
+            <h3 id="form-title">Input Barang</h3>
             <input type="hidden" id="f-id">
             <select id="f-kategori" class="form-input" style="margin-top:10px">
                 <option value="HONDA">HONDA</option>
@@ -66,18 +69,18 @@
             <input type="text" id="f-nama" class="form-input" placeholder="Nama produk...">
             
             <div class="preview-box">
-                <img id="p1" onclick="hapusFoto('p1')">
-                <img id="p2" onclick="hapusFoto('p2')">
+                <img id="p1" onclick="this.style.display='none'; imgs.p1=''">
+                <img id="p2" onclick="this.style.display='none'; imgs.p2=''">
             </div>
 
             <div class="media-row">
-                <div class="btn-media" onclick="pilihFoto('1')">📸 Foto 1<br>(Kamera/Galeri)</div>
-                <div class="btn-media" onclick="pilihFoto('2')">📸 Foto 2<br>(Kamera/Galeri)</div>
+                <div class="btn-media" onclick="pilihFoto('1')">📸 Foto 1</div>
+                <div class="btn-media" onclick="pilihFoto('2')">📸 Foto 2</div>
             </div>
 
             <input type="file" id="file-input" class="hidden" accept="image/*" onchange="prosesFoto(this)">
 
-            <button class="btn-primary" onclick="simpan()">SIMPAN PRODUK</button>
+            <button class="btn-primary" id="btn-simpan" onclick="simpan()">SIMPAN PRODUK</button>
         </div>
     </div>
 
@@ -98,15 +101,14 @@
     const cats = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"];
 
     async function initSQL() {
-        const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}` };
-        SQL = await initSqlJs(config);
-        const saved = localStorage.getItem('stok_db');
-        db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
-        
-        // Pastikan tabel memiliki kolom img1 dan img2
-        db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
-        
-        document.getElementById('loading').style.display = 'none';
+        try {
+            const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}` };
+            SQL = await initSqlJs(config);
+            const saved = localStorage.getItem('stok_db');
+            db = saved ? new SQL.Database(new Uint8Array(JSON.parse(saved))) : new SQL.Database();
+            db.run("CREATE TABLE IF NOT EXISTS produk (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT, kategori TEXT, img1 TEXT, img2 TEXT, stok INTEGER DEFAULT 0);");
+            document.getElementById('loading').style.display = 'none';
+        } catch (e) { alert("Gagal memuat sistem."); }
     }
 
     function pilihFoto(slot) {
@@ -125,85 +127,88 @@
                     canvas.width = 500; canvas.height = img.height * scale;
                     canvas.getContext('2d').drawImage(img, 0, 0, 500, canvas.height);
                     const base64 = canvas.toDataURL('image/jpeg', 0.6);
-                    
-                    const idTag = 'p' + targetSlot;
-                    imgs[idTag] = base64;
-                    const el = document.getElementById(idTag);
-                    el.src = base64;
-                    el.style.display = 'block';
+                    imgs['p'+targetSlot] = base64;
+                    document.getElementById('p'+targetSlot).src = base64;
+                    document.getElementById('p'+targetSlot).style.display = 'block';
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(input.files[0]);
         }
-        input.value = ''; // Reset input
-    }
-
-    function hapusFoto(id) {
-        if(confirm("Hapus foto ini?")) {
-            imgs[id] = '';
-            document.getElementById(id).style.display = 'none';
-        }
+        input.value = '';
     }
 
     function simpan() {
         const nama = document.getElementById('f-nama').value;
         const kat = document.getElementById('f-kategori').value;
-        if(!nama) return alert("Nama wajib diisi!");
-        
+        const id = document.getElementById('f-id').value;
+        if(!nama) return alert("Nama kosong!");
+
         try {
-            db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [nama, kat, imgs.p1, imgs.p2]);
-            persist(); 
-            reset(); 
-            navKe('list');
-        } catch (e) {
-            alert("Error Simpan: " + e.message);
-        }
+            if(id) {
+                db.run("UPDATE produk SET nama=?, kategori=?, img1=?, img2=? WHERE id=?", [nama, kat, imgs.p1, imgs.p2, id]);
+            } else {
+                db.run("INSERT INTO produk (nama, kategori, img1, img2, stok) VALUES (?,?,?,?,0)", [nama, kat, imgs.p1, imgs.p2]);
+            }
+            persist(); reset(); navKe('list');
+        } catch (e) { alert("Gagal Simpan."); }
+    }
+
+    function edit(id) {
+        const data = db.exec("SELECT * FROM produk WHERE id=?", [id])[0].values[0];
+        document.getElementById('f-id').value = data[0];
+        document.getElementById('f-nama').value = data[1];
+        document.getElementById('f-kategori').value = data[2];
+        imgs.p1 = data[3] || '';
+        imgs.p2 = data[4] || '';
+        
+        if(imgs.p1) { document.getElementById('p1').src = imgs.p1; document.getElementById('p1').style.display = 'block'; }
+        if(imgs.p2) { document.getElementById('p2').src = imgs.p2; document.getElementById('p2').style.display = 'block'; }
+        
+        document.getElementById('form-title').innerText = "Edit Barang";
+        navKe('add');
     }
 
     function render() {
         const q = document.getElementById('q-search').value;
-        const res = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`)[0];
+        const data = db.exec(`SELECT * FROM produk WHERE kategori='${curCat}' AND nama LIKE '%${q}%' ORDER BY id DESC`);
         let html = '';
-        if(res) {
-            res.values.forEach(r => {
+        if(data[0]) {
+            data[0].values.forEach(r => {
                 html += `<div class="product-item">
-                    <div class="img-stack" onclick="zoom(this)">
-                        <img src="${r[3]}" class="prod-img">
-                        <img src="${r[4]}" class="prod-img ${r[4]?'':'hidden'}" style="opacity: 0.5; transform: scale(0.8)">
+                    <div class="img-stack">
+                        <img src="${r[3] || ''}" class="prod-img">
+                        <img src="${r[4] || ''}" class="prod-img ${r[4]?'':'hidden'}" style="opacity:0.4; transform:scale(0.8)">
                     </div>
                     <div style="flex:1">
                         <div style="font-weight:700">${r[1]}</div>
                         <div style="color:#2563eb; font-weight:800">Stok: ${r[5]}</div>
+                        <div style="display:flex; gap:10px; margin-top:5px">
+                            <button style="width:30px" onclick="adj(${r[0]},1)">+</button>
+                            <button style="width:30px" onclick="adj(${r[0]},-1)">-</button>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:5px">
-                        <button style="width:35px;height:35px" onclick="adj(${r[0]},1)">+</button>
-                        <button style="width:35px;height:35px" onclick="adj(${r[0]},-1)">-</button>
-                        <button onclick="hapus(${r[0]})">🗑️</button>
+                    <div class="action-btns">
+                        <button class="btn-edit" onclick="edit(${r[0]})">EDIT</button>
+                        <button class="btn-del" onclick="hapus(${r[0]})">HAPUS</button>
                     </div>
                 </div>`;
             });
         }
-        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Data Kosong</p>';
+        document.getElementById('list-render').innerHTML = html || '<p style="text-align:center;margin-top:20px">Kosong</p>';
     }
 
     async function exportDB() {
         try {
             const data = db.export();
-            const fileName = `stok_${new Date().getTime()}.sqlite`;
-            const blob = new Blob([data], { type: "application/octet-stream" });
-            
-            if (navigator.share) {
-                const file = new File([blob], fileName, { type: "application/octet-stream" });
-                await navigator.share({ files: [file], title: 'Backup Stok' });
-            } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url; a.download = fileName;
-                a.click();
+            const fileName = `stok_backup.sqlite`;
+            const file = new File([data], fileName, { type: "application/octet-stream" });
+            if (navigator.share) await navigator.share({ files: [file], title: 'Backup Stok' });
+            else {
+                const url = URL.createObjectURL(new Blob([data]));
+                const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
             }
-        } catch (e) { alert("Gunakan fitur Share via WhatsApp/Drive"); }
-        toggleMenu();
+        } catch (e) { alert("Gunakan fitur Share"); }
     }
 
     function importDB(e) {
@@ -230,15 +235,14 @@
             `<div class="tab ${c===curCat?'active':''}" onclick="curCat='${c}';renderTabs();render()">${c}</div>`).join('');
     }
     function reset() { 
-        document.getElementById('f-nama').value=''; 
-        document.getElementById('p1').style.display='none'; 
-        document.getElementById('p2').style.display='none';
+        document.getElementById('f-id').value=''; document.getElementById('f-nama').value=''; 
+        document.getElementById('p1').style.display='none'; document.getElementById('p2').style.display='none';
+        document.getElementById('form-title').innerText = "Input Barang";
         imgs = { p1: '', p2: '' };
     }
     function toggleMenu() { document.getElementById('menuDropdown').classList.toggle('show'); }
     function hapus(id) { if(confirm("Hapus?")) { db.run("DELETE FROM produk WHERE id=?", [id]); persist(); render(); } }
-    function clearData() { if(confirm("Hapus permanen semua data?")) { localStorage.clear(); location.reload(); } }
-    function zoom(el) { el.classList.toggle('zoomed'); }
+    function clearData() { if(confirm("Reset database?")) { localStorage.clear(); location.reload(); } }
     
     window.onload = initSQL;
 </script>
